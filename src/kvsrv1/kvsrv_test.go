@@ -11,36 +11,49 @@ import (
 )
 
 // Test Put with a single client and a reliable network
+// 測試在可靠網路環境下，單一客戶端的 Put 操作和版本控制機制
 func TestReliablePut(t *testing.T) {
 	const Val = "6.5840"
 	const Ver = 0
 
+	// 建立測試環境，true 表示可靠網路（無網路故障）
 	ts := MakeTestKV(t, true)
 	defer ts.Cleanup()
 
 	ts.Begin("One client and reliable Put")
 
+	// 建立客戶端
 	ck := ts.MakeClerk()
+	
+	// 測試 1: 對新 key 進行 Put 操作，版本號為 0
+	// 新 key 必須使用版本號 0，期望成功
 	if err := ck.Put("k", Val, Ver); err != rpc.OK {
 		t.Fatalf("Put err %v", err)
 	}
 
+	// 測試 2: 驗證 Put 操作的結果
+	// 檢查值是否正確儲存，版本號是否遞增
 	if val, ver, err := ck.Get("k"); err != rpc.OK {
 		t.Fatalf("Get err %v; expected OK", err)
 	} else if val != Val {
 		t.Fatalf("Get value err %v; expected %v", val, Val)
-	} else if ver != Ver+1 {
+	} else if ver != Ver+1 { // 版本號應該從 0 變成 1
 		t.Fatalf("Get wrong version %v; expected %v", ver, Ver+1)
 	}
 
+	// 測試 3: 使用過期版本號進行 Put
+	// 當前版本已經是 1，使用版本號 0 應該失敗
 	if err := ck.Put("k", Val, 0); err != rpc.ErrVersion {
 		t.Fatalf("expected Put to fail with ErrVersion; got err=%v", err)
 	}
 
+	// 測試 4: 對不存在的 key 使用非 0 版本號
+	// 新 key 必須使用版本號 0，使用其他版本號應該失敗
 	if err := ck.Put("y", Val, rpc.Tversion(1)); err != rpc.ErrNoKey {
 		t.Fatalf("expected Put to fail with ErrNoKey; got err=%v", err)
 	}
 
+	// 測試 5: 確認 key "y" 確實不存在
 	if _, _, err := ck.Get("y"); err != rpc.ErrNoKey {
 		t.Fatalf("expected Get to fail with ErrNoKey; got err=%v", err)
 	}
@@ -83,7 +96,7 @@ func TestMemPutManyClientsReliable(t *testing.T) {
 	for i, _ := range cks {
 		cks[i] = ts.MakeClerk()
 	}
-
+	
 	// force allocation of ends for server in each client
 	for i := 0; i < NCLIENT; i++ {
 		if err := cks[i].Put("k", "", 1); err != rpc.ErrNoKey {

@@ -18,16 +18,22 @@ func DPrintf(format string, a ...interface{}) (n int, err error) {
 	return
 }
 
-
+type kvEntry struct {
+	value   string
+	version rpc.Tversion
+}
 type KVServer struct {
 	mu sync.Mutex
 
 	// Your definitions here.
+	data map[string]kvEntry
 }
 
 func MakeKVServer() *KVServer {
 	kv := &KVServer{}
+	
 	// Your code here.
+	kv.data = make(map[string]kvEntry)
 	return kv
 }
 
